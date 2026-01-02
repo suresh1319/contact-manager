@@ -11,7 +11,7 @@ app.use(cors());
 app.use(express.json());
 app.use('/api', contactRoutes);
 
-mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/contactmanager')
+mongoose.connect(process.env.MONGODB_URI || 'mongodb+srv://mrecitc9_db_user:suresh1319@cluster0.my6udwu.mongodb.net/contactmanager')
   .then(() => console.log('MongoDB connected'))
   .catch(err => console.log(err));
 
