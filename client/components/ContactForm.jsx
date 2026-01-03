@@ -31,9 +31,9 @@ const ContactForm = ({ onContactAdded, contact, onContactDeleted }) => {
     setLoading(true);
     try {
       if (contact) {
-        await axios.put(`http://localhost:5000/api/contacts/${contact._id}`, formData);
+        await axios.put(`https://contact-manager-6hpy.onrender.com/api/contacts/${contact._id}`, formData);
       } else {
-        await axios.post('http://localhost:5000/api/contacts', formData);
+        await axios.post('https://contact-manager-6hpy.onrender.com/api/contacts', formData);
       }
       setFormData({ name: '', email: '', phone: '', message: '', profilePic: '' });
       setErrors({});
@@ -48,7 +48,7 @@ const ContactForm = ({ onContactAdded, contact, onContactDeleted }) => {
   const handleDelete = async () => {
     if (!confirm('Delete this contact?')) return;
     try {
-      await axios.delete(`http://localhost:5000/api/contacts/${contact._id}`);
+      await axios.delete(`https://contact-manager-6hpy.onrender.com/api/contacts/${contact._id}`);
       onContactDeleted();
       alert('Contact deleted successfully!');
     } catch (error) {
@@ -57,8 +57,31 @@ const ContactForm = ({ onContactAdded, contact, onContactDeleted }) => {
   };
 
   const handleChange = (field) => (e) => {
-    setFormData({ ...formData, [field]: e.target.value });
-    if (errors[field]) setErrors({ ...errors, [field]: '' });
+    const newFormData = { ...formData, [field]: e.target.value };
+    setFormData(newFormData);
+    
+    // Clear error for this field and re-validate
+    const newErrors = { ...errors };
+    delete newErrors[field];
+    
+    // Re-validate the specific field
+    if (field === 'name' && !newFormData.name.trim()) {
+      newErrors.name = 'Name is required';
+    } else if (field === 'email') {
+      if (!newFormData.email.trim()) {
+        newErrors.email = 'Email is required';
+      } else if (!/\S+@\S+\.\S+/.test(newFormData.email)) {
+        newErrors.email = 'Invalid email format';
+      }
+    } else if (field === 'phone') {
+      if (!newFormData.phone.trim()) {
+        newErrors.phone = 'Phone is required';
+      } else if (!/^\d{10}$/.test(newFormData.phone.replace(/\D/g, ''))) {
+        newErrors.phone = 'Phone must be 10 digits';
+      }
+    }
+    
+    setErrors(newErrors);
   };
 
   const isValid = formData.name && formData.email && formData.phone && Object.keys(errors).length === 0;
