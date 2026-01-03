@@ -13,7 +13,7 @@ const App = () => {
 
   const fetchContacts = async () => {
     try {
-      const response = await axios.get('http://localhost:5000/api/contacts');
+      const response = await axios.get('https://contact-manager-6hpy.onrender.com/api/contacts');
       setContacts(response.data);
     } catch (error) {
       console.error('Error fetching contacts:', error);

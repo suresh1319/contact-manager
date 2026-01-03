@@ -7,7 +7,7 @@ const ContactList = ({ contacts, onContactDeleted, onCreateContact, onContactCli
   const handleDelete = async (id) => {
     if (!confirm('Delete this contact?')) return;
     try {
-      await axios.delete(`http://localhost:5000/api/contacts/${id}`);
+      await axios.delete(`https://contact-manager-6hpy.onrender.com/api/contacts/${id}`);
       onContactDeleted();
     } catch (error) {
       console.error('Error deleting contact:', error);

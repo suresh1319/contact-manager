@@ -25,7 +25,7 @@ const ContactDetails = ({ contact, onBack, onContactUpdated, onContactDeleted })
 
   const handleSave = async () => {
     try {
-      await axios.put(`http://localhost:5000/api/contacts/${contact._id}`, editData);
+      await axios.put(`https://contact-manager-6hpy.onrender.com/api/contacts/${contact._id}`, editData);
       onContactUpdated();
       setIsEditing(false);
     } catch (error) {
@@ -36,7 +36,7 @@ const ContactDetails = ({ contact, onBack, onContactUpdated, onContactDeleted })
   const toggleFavorite = async () => {
     try {
       const updatedData = { ...contact, isFavorite: !contact.isFavorite };
-      await axios.put(`http://localhost:5000/api/contacts/${contact._id}`, updatedData);
+      await axios.put(`https://contact-manager-6hpy.onrender.com/api/contacts/${contact._id}`, updatedData);
       onContactUpdated();
     } catch (error) {
       console.error('Error updating favorite:', error);
@@ -46,7 +46,7 @@ const ContactDetails = ({ contact, onBack, onContactUpdated, onContactDeleted })
   const handleDelete = async () => {
     if (!confirm('Delete this contact?')) return;
     try {
-      await axios.delete(`http://localhost:5000/api/contacts/${contact._id}`);
+      await axios.delete(`https://contact-manager-6hpy.onrender.com/api/contacts/${contact._id}`);
       onContactDeleted();
       onBack();
     } catch (error) {
