@@ -1,4 +1,12 @@
-const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/i;
+const isValidEmail = (value) => {
+  if (typeof value !== 'string') return false;
+  const trimmed = value.trim();
+  const atIndex = trimmed.indexOf('@');
+  if (atIndex <= 0 || atIndex !== trimmed.lastIndexOf('@')) return false;
+  const domain = trimmed.slice(atIndex + 1);
+  if (!domain || !domain.includes('.') || domain.startsWith('.') || domain.endsWith('.')) return false;
+  return true;
+};
 
 export const MAX_NAME_LENGTH = 100;
 export const MAX_MESSAGE_LENGTH = 500;
@@ -28,7 +36,7 @@ export const validateContact = (data, { requireAll = true } = {}) => {
   if (requireAll || data.email !== undefined) {
     if (!email) {
       errors.email = 'Email is required';
-    } else if (!EMAIL_PATTERN.test(email)) {
+    } else if (!isValidEmail(email)) {
       errors.email = 'Invalid email format';
     }
   }

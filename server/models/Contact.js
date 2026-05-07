@@ -1,5 +1,15 @@
 const mongoose = require('mongoose');
 
+const isValidEmail = (value) => {
+  if (typeof value !== 'string') return false;
+  const trimmed = value.trim();
+  const atIndex = trimmed.indexOf('@');
+  if (atIndex <= 0 || atIndex !== trimmed.lastIndexOf('@')) return false;
+  const domain = trimmed.slice(atIndex + 1);
+  if (!domain || !domain.includes('.') || domain.startsWith('.') || domain.endsWith('.')) return false;
+  return true;
+};
+
 const contactSchema = new mongoose.Schema({
   name: { type: String, required: true, trim: true, maxlength: 100 },
   email: {
@@ -7,7 +17,10 @@ const contactSchema = new mongoose.Schema({
     required: true,
     trim: true,
     lowercase: true,
-    match: [/^[^\s@]+@[^\s@]+\.[^\s@]+$/i, 'Invalid email format']
+    validate: {
+      validator: isValidEmail,
+      message: 'Invalid email format'
+    }
   },
   phone: {
     type: String,
@@ -21,9 +34,6 @@ const contactSchema = new mongoose.Schema({
   createdAt: { type: Date, default: Date.now }
 });
 
-contactSchema.index({ name: 1 });
-contactSchema.index({ email: 1 });
-contactSchema.index({ phone: 1 });
 contactSchema.index({ name: 'text', email: 'text', phone: 'text' });
 
 module.exports = mongoose.model('Contact', contactSchema);

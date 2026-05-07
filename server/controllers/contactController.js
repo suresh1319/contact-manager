@@ -1,11 +1,20 @@
 const mongoose = require('mongoose');
 const Contact = require('../models/Contact');
 
-const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/i;
 const MAX_NAME_LENGTH = 100;
 const MAX_MESSAGE_LENGTH = 500;
 const MAX_QUERY_LIMIT = 200;
 const MAX_SEARCH_LENGTH = 50;
+
+const isValidEmail = (value) => {
+  if (typeof value !== 'string') return false;
+  const trimmed = value.trim();
+  const atIndex = trimmed.indexOf('@');
+  if (atIndex <= 0 || atIndex !== trimmed.lastIndexOf('@')) return false;
+  const domain = trimmed.slice(atIndex + 1);
+  if (!domain || !domain.includes('.') || domain.startsWith('.') || domain.endsWith('.')) return false;
+  return true;
+};
 
 const sanitizeContactPayload = (payload, { requireAll }) => {
   const errors = {};
@@ -26,7 +35,7 @@ const sanitizeContactPayload = (payload, { requireAll }) => {
   if (requireAll || payload.email !== undefined) {
     if (!email) {
       errors.email = 'Email is required';
-    } else if (!EMAIL_PATTERN.test(email)) {
+    } else if (!isValidEmail(email)) {
       errors.email = 'Invalid email format';
     } else {
       data.email = email;
@@ -103,7 +112,14 @@ const getContacts = async (req, res) => {
       filter.$text = { $search: trimmedSearch };
     }
 
-    let query = Contact.find(filter).sort({ createdAt: -1 }).lean();
+    const hasSearch = typeof search === 'string' && search.trim();
+    let query = Contact.find(filter);
+    if (hasSearch) {
+      query = query.sort({ score: { $meta: 'textScore' }, createdAt: -1 });
+    } else {
+      query = query.sort({ createdAt: -1 });
+    }
+    query = query.lean();
     const parsedLimit = Number.parseInt(limit, 10);
     if (Number.isFinite(parsedLimit) && parsedLimit > 0) {
       query = query.limit(Math.min(parsedLimit, MAX_QUERY_LIMIT));
