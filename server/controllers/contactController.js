@@ -7,8 +7,6 @@ const MAX_MESSAGE_LENGTH = 500;
 const MAX_QUERY_LIMIT = 200;
 const MAX_SEARCH_LENGTH = 50;
 
-const escapeRegex = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-
 const sanitizeContactPayload = (payload, { requireAll }) => {
   const errors = {};
   const data = {};
@@ -69,7 +67,7 @@ const sanitizeContactPayload = (payload, { requireAll }) => {
 
   if (payload.isFavorite !== undefined) {
     if (typeof payload.isFavorite !== 'boolean') {
-      errors.isFavorite = 'Favourite must be true or false';
+      errors.isFavorite = 'Favorite must be true or false';
     } else {
       data.isFavorite = payload.isFavorite;
     }
@@ -102,8 +100,7 @@ const getContacts = async (req, res) => {
       if (trimmedSearch.length > MAX_SEARCH_LENGTH) {
         return res.status(400).json({ error: 'Search term too long' });
       }
-      const regex = new RegExp(escapeRegex(trimmedSearch), 'i');
-      filter.$or = [{ name: regex }, { email: regex }, { phone: regex }];
+      filter.$text = { $search: trimmedSearch };
     }
 
     let query = Contact.find(filter).sort({ createdAt: -1 }).lean();

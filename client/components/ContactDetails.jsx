@@ -99,7 +99,7 @@ const ContactDetails = ({ contact, onBack, onContactUpdated, onContactDeleted })
       console.error('Error updating favorite:', error);
       setSaveStatus({
         type: 'error',
-        message: getApiErrorMessage(error, 'Unable to update favourite.')
+        message: getApiErrorMessage(error, 'Unable to update favorite.')
       });
     }
   };

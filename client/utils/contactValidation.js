@@ -70,7 +70,7 @@ export const validateContact = (data, { requireAll = true } = {}) => {
 
   if (data.isFavorite !== undefined) {
     if (typeof data.isFavorite !== 'boolean') {
-      errors.isFavorite = 'Favourite must be true or false';
+      errors.isFavorite = 'Favorite must be true or false';
     } else {
       sanitized.isFavorite = data.isFavorite;
     }

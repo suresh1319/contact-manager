@@ -218,7 +218,7 @@ const ContactList = ({ contacts, onContactDeleted, onCreateContact, onContactCli
             paddingLeft: '1rem'
           }}>
             <span style={{ marginRight: '0.5rem' }}>★</span>
-            Favourites
+            Favorites
           </div>
           
           {favoriteContacts.map((contact) => (
