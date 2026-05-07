@@ -49,10 +49,15 @@ npm install
 npm run dev
 ```
 
+Optional: create `client/.env` to point the UI to a custom API URL:
+```
+VITE_API_BASE_URL=http://localhost:5000/api
+```
+
 ## 📊 API Endpoints
 
 - `POST /api/contacts` - Create contact
-- `GET /api/contacts` - Fetch all contacts
+- `GET /api/contacts` - Fetch all contacts (supports `search`, `limit`, `offset`)
 - `DELETE /api/contacts/:id` - Delete contact
 
 ## 🎯 Evaluation Points

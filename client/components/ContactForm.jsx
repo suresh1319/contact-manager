@@ -1,6 +1,16 @@
 import React, { useState } from 'react';
-import axios from 'axios';
 import Input from './Input';
+import {
+  createContact,
+  updateContact,
+  deleteContact,
+  getApiErrorFields,
+  getApiErrorMessage
+} from '../api/contacts';
+import {
+  validateContact,
+  MAX_PROFILE_PIC_SIZE_BYTES
+} from '../utils/contactValidation';
 
 const ContactForm = ({ onContactAdded, contact, onContactDeleted }) => {
   const [formData, setFormData] = useState({
@@ -12,35 +22,46 @@ const ContactForm = ({ onContactAdded, contact, onContactDeleted }) => {
   });
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
+  const [submitStatus, setSubmitStatus] = useState(null);
 
-  const validateForm = () => {
-    const newErrors = {};
-    if (!formData.name.trim()) newErrors.name = 'Name is required';
-    if (!formData.email.trim()) newErrors.email = 'Email is required';
-    else if (!/\S+@\S+\.\S+/.test(formData.email)) newErrors.email = 'Invalid email format';
-    if (!formData.phone.trim()) newErrors.phone = 'Phone is required';
-    else if (!/^\d{10}$/.test(formData.phone.replace(/\D/g, ''))) newErrors.phone = 'Phone must be 10 digits';
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+  const getFieldError = (field, value) => {
+    const { errors: fieldErrors } = validateContact({ [field]: value }, { requireAll: false });
+    return fieldErrors[field];
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!validateForm()) return;
+    const { errors: validationErrors, sanitized } = validateContact(formData, { requireAll: true });
+    if (Object.keys(validationErrors).length > 0) {
+      setErrors(validationErrors);
+      return;
+    }
     
     setLoading(true);
+    setSubmitStatus(null);
     try {
       if (contact) {
-        await axios.put(`https://contact-manager-6hpy.onrender.com/api/contacts/${contact._id}`, formData);
+        await updateContact(contact._id, sanitized);
       } else {
-        await axios.post('https://contact-manager-6hpy.onrender.com/api/contacts', formData);
+        await createContact(sanitized);
       }
       setFormData({ name: '', email: '', phone: '', message: '', profilePic: '' });
       setErrors({});
       onContactAdded();
-      alert(contact ? 'Contact updated successfully!' : 'Contact added successfully!');
+      setSubmitStatus({
+        type: 'success',
+        message: contact ? 'Contact updated successfully!' : 'Contact added successfully!'
+      });
     } catch (error) {
       console.error('Error:', error);
+      const fieldErrors = getApiErrorFields(error);
+      if (fieldErrors) {
+        setErrors(fieldErrors);
+      }
+      setSubmitStatus({
+        type: 'error',
+        message: getApiErrorMessage(error, 'Unable to save contact.')
+      });
     }
     setLoading(false);
   };
@@ -48,40 +69,33 @@ const ContactForm = ({ onContactAdded, contact, onContactDeleted }) => {
   const handleDelete = async () => {
     if (!confirm('Delete this contact?')) return;
     try {
-      await axios.delete(`https://contact-manager-6hpy.onrender.com/api/contacts/${contact._id}`);
+      setSubmitStatus(null);
+      await deleteContact(contact._id);
       onContactDeleted();
-      alert('Contact deleted successfully!');
+      setSubmitStatus({ type: 'success', message: 'Contact deleted successfully!' });
     } catch (error) {
       console.error('Error deleting contact:', error);
+      setSubmitStatus({
+        type: 'error',
+        message: getApiErrorMessage(error, 'Unable to delete contact.')
+      });
     }
   };
 
   const handleChange = (field) => (e) => {
-    const newFormData = { ...formData, [field]: e.target.value };
+    const newValue = e.target.value;
+    const newFormData = { ...formData, [field]: newValue };
     setFormData(newFormData);
+    setSubmitStatus(null);
     
-    // Clear error for this field and re-validate
-    const newErrors = { ...errors };
-    delete newErrors[field];
-    
-    // Re-validate the specific field
-    if (field === 'name' && !newFormData.name.trim()) {
-      newErrors.name = 'Name is required';
-    } else if (field === 'email') {
-      if (!newFormData.email.trim()) {
-        newErrors.email = 'Email is required';
-      } else if (!/\S+@\S+\.\S+/.test(newFormData.email)) {
-        newErrors.email = 'Invalid email format';
+    const fieldError = getFieldError(field, newValue);
+    setErrors((prev) => {
+      const updated = { ...prev, [field]: fieldError };
+      if (!fieldError) {
+        delete updated[field];
       }
-    } else if (field === 'phone') {
-      if (!newFormData.phone.trim()) {
-        newErrors.phone = 'Phone is required';
-      } else if (!/^\d{10}$/.test(newFormData.phone.replace(/\D/g, ''))) {
-        newErrors.phone = 'Phone must be 10 digits';
-      }
-    }
-    
-    setErrors(newErrors);
+      return updated;
+    });
   };
 
   const isValid = formData.name && formData.email && formData.phone && Object.keys(errors).length === 0;
@@ -91,6 +105,20 @@ const ContactForm = ({ onContactAdded, contact, onContactDeleted }) => {
       <h2 style={{ textAlign: 'center', marginBottom: '2rem', marginTop: '1rem', color: 'white' }}>
         {contact ? 'Edit Contact' : 'Add New Contact'}
       </h2>
+
+      {submitStatus && (
+        <div style={{
+          backgroundColor: submitStatus.type === 'success' ? '#32d74b' : '#ff453a',
+          color: 'white',
+          padding: '0.75rem 1rem',
+          borderRadius: '12px',
+          marginBottom: '1rem',
+          textAlign: 'center',
+          fontSize: '0.9rem'
+        }}>
+          {submitStatus.message}
+        </div>
+      )}
       
       <Input
         label="Name"
@@ -126,8 +154,22 @@ const ContactForm = ({ onContactAdded, contact, onContactDeleted }) => {
           onChange={(e) => {
             const file = e.target.files[0];
             if (file) {
+              if (file.size > MAX_PROFILE_PIC_SIZE_BYTES) {
+                setErrors((prev) => ({
+                  ...prev,
+                  profilePic: 'Profile picture must be 2MB or smaller'
+                }));
+                return;
+              }
               const reader = new FileReader();
-              reader.onload = () => setFormData({ ...formData, profilePic: reader.result });
+              reader.onload = () => {
+                setFormData({ ...formData, profilePic: reader.result });
+                setErrors((prev) => {
+                  const updated = { ...prev };
+                  delete updated.profilePic;
+                  return updated;
+                });
+              };
               reader.readAsDataURL(file);
             }
           }}
@@ -142,6 +184,9 @@ const ContactForm = ({ onContactAdded, contact, onContactDeleted }) => {
             outline: 'none'
           }}
         />
+        {errors.profilePic && (
+          <span style={{ color: '#ff3b30', fontSize: '0.875rem' }}>{errors.profilePic}</span>
+        )}
       </div>
       
       <div style={{ marginBottom: '1rem' }}>
@@ -161,6 +206,9 @@ const ContactForm = ({ onContactAdded, contact, onContactDeleted }) => {
             outline: 'none'
           }}
         />
+        {errors.message && (
+          <span style={{ color: '#ff3b30', fontSize: '0.875rem' }}>{errors.message}</span>
+        )}
       </div>
       
       <button

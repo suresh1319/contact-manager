@@ -1,5 +1,14 @@
 import React, { useState } from 'react';
-import axios from 'axios';
+import {
+  updateContact,
+  deleteContact,
+  getApiErrorFields,
+  getApiErrorMessage
+} from '../api/contacts';
+import {
+  validateContact,
+  MAX_PROFILE_PIC_SIZE_BYTES
+} from '../utils/contactValidation';
 
 const ContactDetails = ({ contact, onBack, onContactUpdated, onContactDeleted }) => {
   const [isEditing, setIsEditing] = useState(false);
@@ -11,47 +20,120 @@ const ContactDetails = ({ contact, onBack, onContactUpdated, onContactDeleted })
     profilePic: contact.profilePic || '',
     isFavorite: contact.isFavorite || false
   });
+  const [errors, setErrors] = useState({});
+  const [saveStatus, setSaveStatus] = useState(null);
+  const [saving, setSaving] = useState(false);
 
   const handleImageUpload = (e) => {
     const file = e.target.files[0];
     if (file) {
+      if (file.size > MAX_PROFILE_PIC_SIZE_BYTES) {
+        setErrors((prev) => ({
+          ...prev,
+          profilePic: 'Profile picture must be 2MB or smaller'
+        }));
+        return;
+      }
       const reader = new FileReader();
       reader.onload = () => {
         setEditData({ ...editData, profilePic: reader.result });
+        setErrors((prev) => {
+          const updated = { ...prev };
+          delete updated.profilePic;
+          return updated;
+        });
       };
       reader.readAsDataURL(file);
     }
   };
 
   const handleSave = async () => {
+    const { errors: validationErrors, sanitized } = validateContact(editData, { requireAll: true });
+    if (Object.keys(validationErrors).length > 0) {
+      setErrors(validationErrors);
+      return;
+    }
+
+    setSaving(true);
+    setSaveStatus(null);
     try {
-      await axios.put(`https://contact-manager-6hpy.onrender.com/api/contacts/${contact._id}`, editData);
+      await updateContact(contact._id, sanitized);
+      setErrors({});
       onContactUpdated();
       setIsEditing(false);
+      setSaveStatus({ type: 'success', message: 'Contact updated successfully!' });
     } catch (error) {
       console.error('Error updating contact:', error);
+      const fieldErrors = getApiErrorFields(error);
+      if (fieldErrors) {
+        setErrors(fieldErrors);
+      }
+      setSaveStatus({
+        type: 'error',
+        message: getApiErrorMessage(error, 'Unable to update contact.')
+      });
     }
+    setSaving(false);
+  };
+
+  const handleEditChange = (field) => (e) => {
+    const newValue = e.target.value;
+    setEditData((prev) => ({ ...prev, [field]: newValue }));
+    setSaveStatus(null);
+    const { errors: fieldErrors } = validateContact({ [field]: newValue }, { requireAll: false });
+    setErrors((prev) => {
+      const updated = { ...prev, [field]: fieldErrors[field] };
+      if (!fieldErrors[field]) {
+        delete updated[field];
+      }
+      return updated;
+    });
   };
 
   const toggleFavorite = async () => {
     try {
-      const updatedData = { ...contact, isFavorite: !contact.isFavorite };
-      await axios.put(`https://contact-manager-6hpy.onrender.com/api/contacts/${contact._id}`, updatedData);
+      const updatedData = { isFavorite: !contact.isFavorite };
+      await updateContact(contact._id, updatedData);
       onContactUpdated();
     } catch (error) {
       console.error('Error updating favorite:', error);
+      setSaveStatus({
+        type: 'error',
+        message: getApiErrorMessage(error, 'Unable to update favourite.')
+      });
     }
   };
 
   const handleDelete = async () => {
     if (!confirm('Delete this contact?')) return;
     try {
-      await axios.delete(`https://contact-manager-6hpy.onrender.com/api/contacts/${contact._id}`);
+      setSaveStatus(null);
+      await deleteContact(contact._id);
       onContactDeleted();
       onBack();
     } catch (error) {
       console.error('Error deleting contact:', error);
+      setSaveStatus({
+        type: 'error',
+        message: getApiErrorMessage(error, 'Unable to delete contact.')
+      });
     }
+  };
+
+  const handleToggleEdit = () => {
+    if (isEditing) {
+      setEditData({
+        name: contact.name,
+        email: contact.email,
+        phone: contact.phone,
+        message: contact.message || '',
+        profilePic: contact.profilePic || '',
+        isFavorite: contact.isFavorite || false
+      });
+      setErrors({});
+      setSaveStatus(null);
+    }
+    setIsEditing(!isEditing);
   };
 
   return (
@@ -84,7 +166,7 @@ const ContactDetails = ({ contact, onBack, onContactUpdated, onContactDeleted })
         </button>
         <h1 style={{ margin: 0, flex: 1 }}>Contact Details</h1>
         <button
-          onClick={() => setIsEditing(!isEditing)}
+          onClick={handleToggleEdit}
           style={{
             background: 'none',
             border: 'none',
@@ -96,6 +178,20 @@ const ContactDetails = ({ contact, onBack, onContactUpdated, onContactDeleted })
           {isEditing ? 'Cancel' : 'Edit'}
         </button>
       </div>
+
+      {saveStatus && (
+        <div style={{
+          backgroundColor: saveStatus.type === 'success' ? '#32d74b' : '#ff453a',
+          color: 'white',
+          padding: '0.75rem 1rem',
+          borderRadius: '12px',
+          marginBottom: '1rem',
+          textAlign: 'center',
+          fontSize: '0.9rem'
+        }}>
+          {saveStatus.message}
+        </div>
+      )}
 
       {/* Profile Section */}
       <div style={{
@@ -161,23 +257,35 @@ const ContactDetails = ({ contact, onBack, onContactUpdated, onContactDeleted })
             </label>
           )}
         </div>
+        {errors.profilePic && (
+          <div style={{ color: '#ff453a', fontSize: '0.85rem', marginTop: '0.5rem' }}>
+            {errors.profilePic}
+          </div>
+        )}
 
         {isEditing ? (
-          <input
-            value={editData.name}
-            onChange={(e) => setEditData({ ...editData, name: e.target.value })}
-            style={{
-              backgroundColor: '#2c2c2e',
-              border: '1px solid #48484a',
-              borderRadius: '8px',
-              padding: '0.5rem',
-              color: 'white',
-              fontSize: '1.5rem',
-              fontWeight: 'bold',
-              textAlign: 'center',
-              width: '100%'
-            }}
-          />
+          <div>
+            <input
+              value={editData.name}
+              onChange={handleEditChange('name')}
+              style={{
+                backgroundColor: '#2c2c2e',
+                border: '1px solid #48484a',
+                borderRadius: '8px',
+                padding: '0.5rem',
+                color: 'white',
+                fontSize: '1.5rem',
+                fontWeight: 'bold',
+                textAlign: 'center',
+                width: '100%'
+              }}
+            />
+            {errors.name && (
+              <div style={{ color: '#ff453a', fontSize: '0.85rem', marginTop: '0.5rem' }}>
+                {errors.name}
+              </div>
+            )}
+          </div>
         ) : (
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
             <h2 style={{ margin: 0, fontSize: '1.8rem' }}>{contact.name}</h2>
@@ -206,19 +314,26 @@ const ContactDetails = ({ contact, onBack, onContactUpdated, onContactDeleted })
         }}>
           <div style={{ color: '#8e8e93', fontSize: '0.9rem', marginBottom: '0.5rem' }}>Phone</div>
           {isEditing ? (
-            <input
-              value={editData.phone}
-              onChange={(e) => setEditData({ ...editData, phone: e.target.value })}
-              style={{
-                backgroundColor: '#2c2c2e',
-                border: '1px solid #48484a',
-                borderRadius: '8px',
-                padding: '0.5rem',
-                color: 'white',
-                fontSize: '1.1rem',
-                width: '100%'
-              }}
-            />
+            <div>
+              <input
+                value={editData.phone}
+                onChange={handleEditChange('phone')}
+                style={{
+                  backgroundColor: '#2c2c2e',
+                  border: '1px solid #48484a',
+                  borderRadius: '8px',
+                  padding: '0.5rem',
+                  color: 'white',
+                  fontSize: '1.1rem',
+                  width: '100%'
+                }}
+              />
+              {errors.phone && (
+                <div style={{ color: '#ff453a', fontSize: '0.85rem', marginTop: '0.5rem' }}>
+                  {errors.phone}
+                </div>
+              )}
+            </div>
           ) : (
             <div style={{ fontSize: '1.1rem' }}>{contact.phone}</div>
           )}
@@ -232,19 +347,26 @@ const ContactDetails = ({ contact, onBack, onContactUpdated, onContactDeleted })
         }}>
           <div style={{ color: '#8e8e93', fontSize: '0.9rem', marginBottom: '0.5rem' }}>Email</div>
           {isEditing ? (
-            <input
-              value={editData.email}
-              onChange={(e) => setEditData({ ...editData, email: e.target.value })}
-              style={{
-                backgroundColor: '#2c2c2e',
-                border: '1px solid #48484a',
-                borderRadius: '8px',
-                padding: '0.5rem',
-                color: 'white',
-                fontSize: '1.1rem',
-                width: '100%'
-              }}
-            />
+            <div>
+              <input
+                value={editData.email}
+                onChange={handleEditChange('email')}
+                style={{
+                  backgroundColor: '#2c2c2e',
+                  border: '1px solid #48484a',
+                  borderRadius: '8px',
+                  padding: '0.5rem',
+                  color: 'white',
+                  fontSize: '1.1rem',
+                  width: '100%'
+                }}
+              />
+              {errors.email && (
+                <div style={{ color: '#ff453a', fontSize: '0.85rem', marginTop: '0.5rem' }}>
+                  {errors.email}
+                </div>
+              )}
+            </div>
           ) : (
             <div style={{ fontSize: '1.1rem' }}>{contact.email}</div>
           )}
@@ -259,21 +381,28 @@ const ContactDetails = ({ contact, onBack, onContactUpdated, onContactDeleted })
           }}>
             <div style={{ color: '#8e8e93', fontSize: '0.9rem', marginBottom: '0.5rem' }}>Message</div>
             {isEditing ? (
-              <textarea
-                value={editData.message}
-                onChange={(e) => setEditData({ ...editData, message: e.target.value })}
-                rows="3"
-                style={{
-                  backgroundColor: '#2c2c2e',
-                  border: '1px solid #48484a',
-                  borderRadius: '8px',
-                  padding: '0.5rem',
-                  color: 'white',
-                  fontSize: '1rem',
-                  width: '100%',
-                  resize: 'vertical'
-                }}
-              />
+              <div>
+                <textarea
+                  value={editData.message}
+                  onChange={handleEditChange('message')}
+                  rows="3"
+                  style={{
+                    backgroundColor: '#2c2c2e',
+                    border: '1px solid #48484a',
+                    borderRadius: '8px',
+                    padding: '0.5rem',
+                    color: 'white',
+                    fontSize: '1rem',
+                    width: '100%',
+                    resize: 'vertical'
+                  }}
+                />
+                {errors.message && (
+                  <div style={{ color: '#ff453a', fontSize: '0.85rem', marginTop: '0.5rem' }}>
+                    {errors.message}
+                  </div>
+                )}
+              </div>
             ) : (
               <div style={{ fontSize: '1rem', fontStyle: 'italic' }}>{contact.message}</div>
             )}
@@ -285,6 +414,7 @@ const ContactDetails = ({ contact, onBack, onContactUpdated, onContactDeleted })
       {isEditing ? (
         <button
           onClick={handleSave}
+          disabled={saving}
           style={{
             backgroundColor: '#007aff',
             color: 'white',
@@ -294,11 +424,11 @@ const ContactDetails = ({ contact, onBack, onContactUpdated, onContactDeleted })
             width: '100%',
             fontSize: '1.1rem',
             fontWeight: '500',
-            cursor: 'pointer',
+            cursor: saving ? 'not-allowed' : 'pointer',
             marginBottom: '1rem'
           }}
         >
-          Save Changes
+          {saving ? 'Saving...' : 'Save Changes'}
         </button>
       ) : (
         <button

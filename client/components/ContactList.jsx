@@ -1,36 +1,52 @@
-import React, { useState } from 'react';
-import axios from 'axios';
+import React, { useState, useMemo, useDeferredValue } from 'react';
+import { deleteContact, getApiErrorMessage } from '../api/contacts';
 
-const ContactList = ({ contacts, onContactDeleted, onCreateContact, onContactClick }) => {
+const ContactList = ({ contacts, onContactDeleted, onCreateContact, onContactClick, error }) => {
   const [searchTerm, setSearchTerm] = useState('');
+  const [deleteError, setDeleteError] = useState(null);
+  const deferredSearchTerm = useDeferredValue(searchTerm);
 
   const handleDelete = async (id) => {
     if (!confirm('Delete this contact?')) return;
     try {
-      await axios.delete(`https://contact-manager-6hpy.onrender.com/api/contacts/${id}`);
+      setDeleteError(null);
+      await deleteContact(id);
       onContactDeleted();
     } catch (error) {
       console.error('Error deleting contact:', error);
+      setDeleteError(getApiErrorMessage(error, 'Unable to delete contact.'));
     }
   };
 
-  const filteredContacts = contacts.filter(contact =>
-    contact.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    contact.phone.includes(searchTerm) ||
-    contact.email.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredContacts = useMemo(() => {
+    const normalizedSearch = deferredSearchTerm.trim().toLowerCase();
+    if (!normalizedSearch) return contacts;
+    return contacts.filter(contact =>
+      contact.name.toLowerCase().includes(normalizedSearch) ||
+      contact.phone.includes(normalizedSearch) ||
+      contact.email.toLowerCase().includes(normalizedSearch)
+    );
+  }, [contacts, deferredSearchTerm]);
+
+  const favoriteContacts = useMemo(
+    () => filteredContacts.filter(contact => contact.isFavorite),
+    [filteredContacts]
+  );
+  const regularContacts = useMemo(
+    () => filteredContacts.filter(contact => !contact.isFavorite),
+    [filteredContacts]
   );
 
-  const favoriteContacts = filteredContacts.filter(contact => contact.isFavorite);
-  const regularContacts = filteredContacts.filter(contact => !contact.isFavorite);
+  const groupedContacts = useMemo(() => {
+    return regularContacts.reduce((groups, contact) => {
+      const firstLetter = contact.name.charAt(0).toUpperCase();
+      if (!groups[firstLetter]) groups[firstLetter] = [];
+      groups[firstLetter].push(contact);
+      return groups;
+    }, {});
+  }, [regularContacts]);
 
-  const groupedContacts = regularContacts.reduce((groups, contact) => {
-    const firstLetter = contact.name.charAt(0).toUpperCase();
-    if (!groups[firstLetter]) groups[firstLetter] = [];
-    groups[firstLetter].push(contact);
-    return groups;
-  }, {});
-
-  const sortedGroups = Object.keys(groupedContacts).sort();
+  const sortedGroups = useMemo(() => Object.keys(groupedContacts).sort(), [groupedContacts]);
 
   if (contacts.length === 0) {
     return (
@@ -63,6 +79,34 @@ const ContactList = ({ contacts, onContactDeleted, onCreateContact, onContactCli
             }}
           />
         </div>
+
+        {error && (
+          <div style={{
+            backgroundColor: '#ff453a',
+            color: 'white',
+            padding: '0.75rem 1rem',
+            borderRadius: '12px',
+            marginBottom: '1rem',
+            textAlign: 'center',
+            fontSize: '0.9rem'
+          }}>
+            {error}
+          </div>
+        )}
+
+        {deleteError && (
+          <div style={{
+            backgroundColor: '#ff453a',
+            color: 'white',
+            padding: '0.75rem 1rem',
+            borderRadius: '12px',
+            marginBottom: '1rem',
+            textAlign: 'center',
+            fontSize: '0.9rem'
+          }}>
+            {deleteError}
+          </div>
+        )}
 
         {/* Create Contact Button */}
         <button
@@ -132,6 +176,34 @@ const ContactList = ({ contacts, onContactDeleted, onCreateContact, onContactCli
           }}
         />
       </div>
+
+      {error && (
+        <div style={{
+          backgroundColor: '#ff453a',
+          color: 'white',
+          padding: '0.75rem 1rem',
+          borderRadius: '12px',
+          marginBottom: '1rem',
+          textAlign: 'center',
+          fontSize: '0.9rem'
+        }}>
+          {error}
+        </div>
+      )}
+
+      {deleteError && (
+        <div style={{
+          backgroundColor: '#ff453a',
+          color: 'white',
+          padding: '0.75rem 1rem',
+          borderRadius: '12px',
+          marginBottom: '1rem',
+          textAlign: 'center',
+          fontSize: '0.9rem'
+        }}>
+          {deleteError}
+        </div>
+      )}
 
       {/* Create Contact Button */}
       <button

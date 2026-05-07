@@ -1,13 +1,23 @@
 const mongoose = require('mongoose');
 
 const contactSchema = new mongoose.Schema({
-  name: { type: String, required: true },
-  email: { type: String, required: true },
-  phone: { type: String, required: true },
-  message: { type: String },
+  name: { type: String, required: true, trim: true, maxlength: 100 },
+  email: {
+    type: String,
+    required: true,
+    trim: true,
+    lowercase: true,
+    match: [/^[^\s@]+@[^\s@]+\.[^\s@]+$/i, 'Invalid email format']
+  },
+  phone: { type: String, required: true, trim: true, minlength: 10, maxlength: 10 },
+  message: { type: String, trim: true, maxlength: 500 },
   profilePic: { type: String }, // Base64 image or URL
   isFavorite: { type: Boolean, default: false },
   createdAt: { type: Date, default: Date.now }
 });
+
+contactSchema.index({ name: 1 });
+contactSchema.index({ email: 1 });
+contactSchema.index({ phone: 1 });
 
 module.exports = mongoose.model('Contact', contactSchema);

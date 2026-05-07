@@ -8,7 +8,8 @@ const contactRoutes = require('./routes/contactRoutes');
 const app = express();
 
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '2mb' }));
+app.use(express.urlencoded({ extended: false, limit: '2mb' }));
 app.use('/api', contactRoutes);
 
 mongoose.connect(process.env.MONGODB_URI || 'mongodb+srv://mrecitc9_db_user:suresh1319@cluster0.my6udwu.mongodb.net/contactmanager')

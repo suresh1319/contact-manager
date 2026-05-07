@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import React, { useState, useEffect, useCallback } from 'react';
+import { fetchContacts as fetchContactsApi, getApiErrorMessage } from '../api/contacts';
 import ContactForm from '../components/ContactForm';
 import ContactList from '../components/ContactList';
 import ContactDetails from '../components/ContactDetails';
@@ -10,16 +10,20 @@ const App = () => {
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [selectedContact, setSelectedContact] = useState(null);
+  const [error, setError] = useState(null);
 
-  const fetchContacts = async () => {
+  const fetchContacts = useCallback(async () => {
+    setLoading(true);
+    setError(null);
     try {
-      const response = await axios.get('https://contact-manager-6hpy.onrender.com/api/contacts');
-      setContacts(response.data);
+      const data = await fetchContactsApi();
+      setContacts(data);
     } catch (error) {
       console.error('Error fetching contacts:', error);
+      setError(getApiErrorMessage(error, 'Unable to load contacts.'));
     }
     setLoading(false);
-  };
+  }, []);
 
   const handleContactAdded = () => {
     fetchContacts();
@@ -41,7 +45,7 @@ const App = () => {
 
   useEffect(() => {
     fetchContacts();
-  }, []);
+  }, [fetchContacts]);
 
   if (loading) {
     return (
@@ -82,6 +86,7 @@ const App = () => {
         onContactDeleted={fetchContacts}
         onCreateContact={() => setShowModal(true)}
         onContactClick={handleContactClick}
+        error={error}
       />
 
       {/* Modal for Contact Form */}
