@@ -4,6 +4,8 @@ const Contact = require('../models/Contact');
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/i;
 const MAX_NAME_LENGTH = 100;
 const MAX_MESSAGE_LENGTH = 500;
+const MAX_QUERY_LIMIT = 200;
+const MAX_SEARCH_LENGTH = 50;
 
 const escapeRegex = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
@@ -96,14 +98,18 @@ const getContacts = async (req, res) => {
     const filter = {};
 
     if (typeof search === 'string' && search.trim()) {
-      const regex = new RegExp(escapeRegex(search.trim()), 'i');
+      const trimmedSearch = search.trim();
+      if (trimmedSearch.length > MAX_SEARCH_LENGTH) {
+        return res.status(400).json({ error: 'Search term too long' });
+      }
+      const regex = new RegExp(escapeRegex(trimmedSearch), 'i');
       filter.$or = [{ name: regex }, { email: regex }, { phone: regex }];
     }
 
     let query = Contact.find(filter).sort({ createdAt: -1 }).lean();
     const parsedLimit = Number.parseInt(limit, 10);
     if (Number.isFinite(parsedLimit) && parsedLimit > 0) {
-      query = query.limit(Math.min(parsedLimit, 200));
+      query = query.limit(Math.min(parsedLimit, MAX_QUERY_LIMIT));
     }
 
     const parsedOffset = Number.parseInt(offset, 10);

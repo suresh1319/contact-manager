@@ -1,6 +1,23 @@
 import React, { useState, useMemo, useDeferredValue } from 'react';
 import { deleteContact, getApiErrorMessage } from '../api/contacts';
 
+const ErrorBanner = ({ message }) => {
+  if (!message) return null;
+  return (
+    <div style={{
+      backgroundColor: '#ff453a',
+      color: 'white',
+      padding: '0.75rem 1rem',
+      borderRadius: '12px',
+      marginBottom: '1rem',
+      textAlign: 'center',
+      fontSize: '0.9rem'
+    }}>
+      {message}
+    </div>
+  );
+};
+
 const ContactList = ({ contacts, onContactDeleted, onCreateContact, onContactClick, error }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [deleteError, setDeleteError] = useState(null);
@@ -80,33 +97,8 @@ const ContactList = ({ contacts, onContactDeleted, onCreateContact, onContactCli
           />
         </div>
 
-        {error && (
-          <div style={{
-            backgroundColor: '#ff453a',
-            color: 'white',
-            padding: '0.75rem 1rem',
-            borderRadius: '12px',
-            marginBottom: '1rem',
-            textAlign: 'center',
-            fontSize: '0.9rem'
-          }}>
-            {error}
-          </div>
-        )}
-
-        {deleteError && (
-          <div style={{
-            backgroundColor: '#ff453a',
-            color: 'white',
-            padding: '0.75rem 1rem',
-            borderRadius: '12px',
-            marginBottom: '1rem',
-            textAlign: 'center',
-            fontSize: '0.9rem'
-          }}>
-            {deleteError}
-          </div>
-        )}
+        <ErrorBanner message={error} />
+        <ErrorBanner message={deleteError} />
 
         {/* Create Contact Button */}
         <button
@@ -177,33 +169,8 @@ const ContactList = ({ contacts, onContactDeleted, onCreateContact, onContactCli
         />
       </div>
 
-      {error && (
-        <div style={{
-          backgroundColor: '#ff453a',
-          color: 'white',
-          padding: '0.75rem 1rem',
-          borderRadius: '12px',
-          marginBottom: '1rem',
-          textAlign: 'center',
-          fontSize: '0.9rem'
-        }}>
-          {error}
-        </div>
-      )}
-
-      {deleteError && (
-        <div style={{
-          backgroundColor: '#ff453a',
-          color: 'white',
-          padding: '0.75rem 1rem',
-          borderRadius: '12px',
-          marginBottom: '1rem',
-          textAlign: 'center',
-          fontSize: '0.9rem'
-        }}>
-          {deleteError}
-        </div>
-      )}
+      <ErrorBanner message={error} />
+      <ErrorBanner message={deleteError} />
 
       {/* Create Contact Button */}
       <button

@@ -9,7 +9,12 @@ const contactSchema = new mongoose.Schema({
     lowercase: true,
     match: [/^[^\s@]+@[^\s@]+\.[^\s@]+$/i, 'Invalid email format']
   },
-  phone: { type: String, required: true, trim: true, minlength: 10, maxlength: 10 },
+  phone: {
+    type: String,
+    required: true,
+    trim: true,
+    match: [/^\d{10}$/, 'Phone must be 10 digits']
+  },
   message: { type: String, trim: true, maxlength: 500 },
   profilePic: { type: String }, // Base64 image or URL
   isFavorite: { type: Boolean, default: false },
