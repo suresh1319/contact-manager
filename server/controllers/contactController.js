@@ -103,10 +103,9 @@ const getContacts = async (req, res) => {
       filter.$text = { $search: trimmedSearch };
     }
 
-    const hasSearch = typeof search === 'string' && search.trim();
     let query = Contact.find(filter);
-    if (hasSearch) {
-      query = query.sort({ score: { $meta: 'textScore' } }).sort({ createdAt: -1 });
+    if (filter.$text) {
+      query = query.sort({ score: { $meta: 'textScore' }, createdAt: -1 });
     } else {
       query = query.sort({ createdAt: -1 });
     }
